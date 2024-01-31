@@ -1,7 +1,7 @@
 version: "3.4"
 services:
   app:
-    image: trycanonic/canonic:latest
+    image: trycanonic/canonic
     platform: linux/x86_64
     volumes:
       - mongodbdata:/data/db
@@ -10,6 +10,7 @@ services:
     environment:
       - VIRTUAL_PORT=80
       - VIRTUAL_HOST=localhost
+      - LETSENCRYPT_HOST=localhost
     env_file:
       - .env
     healthcheck:
@@ -25,15 +26,31 @@ services:
     image: containrrr/watchtower
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - app
 
   nginx-proxy:
     image: nginxproxy/nginx-proxy
     ports:
       - "9191:80"
+      - "443:443"
     volumes:
       - /var/run/docker.sock:/tmp/docker.sock:ro
+      - certs:/etc/nginx/certs
+      - vhost:/etc/nginx/vhost.d
+      - html:/usr/share/nginx/html
     depends_on:
-      - app
+      - watchtower
+
+  nginx-proxy-acme:
+    image: nginxproxy/acme-companion
+    volumes_from:
+      - nginx-proxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - acme:/etc/acme.sh
+    environment:
+      - DEFAULT_EMAIL=YOUR-EMAIL
 
   mongo:
     image: mongo
@@ -47,3 +64,7 @@ volumes:
   mongodbdata:
   candata:
   dynamodb:
+  certs:
+  vhost:
+  html:
+  acme:
